@@ -1,0 +1,6 @@
+{
+  "repository": "git@github.com:yihuaxiang/koa-sse.git",
+  "dependencies": {
+    "koa": "^2.14.2"
+  }
+}
