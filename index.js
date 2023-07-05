@@ -1,22 +1,60 @@
-const Koa = require('koa');
-const app = new Koa();
-const sse = require('./sse/index.js')
+const Koa = require("koa");
+const { Transform } = require("stream");
+const EventEmitter = require("events");
 
-app.use(sse({
-    maxClients: 5000,
-    pingInterval: 30000
-}))
+class SSEStream extends Transform {
+    constructor() {
+        super({
+            writableObjectMode: true,
+        });
+    }
 
-app.use(async ctx => {
-    ctx.sse.send('1');
-    ctx.sse.send('2');
-    ctx.sse.send('3');
-    ctx.sse.send('4');
-    ctx.sse.send('5');
-    ctx.sse.send('6');
-    ctx.sse.send('7');
-    ctx.sse.send('8');
-    ctx.sse.sendEnd();
+    _transform(data, _encoding, done) {
+        this.push(`data: ${JSON.stringify(data)}\n\n`);
+        done();
+    }
+}
+
+const events = new EventEmitter();
+events.setMaxListeners(0);
+
+const interval = setInterval(() => {
+    events.emit("data", { timestamp: new Date() });
+}, 1000);
+
+new Koa().
+use(async (ctx, next) => {
+    if (ctx.path !== "/sse") {
+        return await next();
+    }
+
+    ctx.request.socket.setTimeout(0);
+    ctx.req.socket.setNoDelay(true);
+    ctx.req.socket.setKeepAlive(true);
+
+    ctx.set({
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+    });
+
+    const stream = new SSEStream();
+    ctx.status = 200;
+    ctx.body = stream;
+
+    const listener = (data) => {
+        stream.write(data);
+    };
+
+    events.on("data", listener);
+
+    stream.on("close", () => {
+        events.off("data", listener);
+    });
 })
+    .use(ctx => {
+        ctx.status = 200;
+        ctx.body = "ok";
+    })
+    .listen(3080, () => console.log("Listening"));
 
-app.listen(3000)
