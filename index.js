@@ -36,6 +36,7 @@ use(async (ctx, next) => {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",
+        "Access-Control-Allow-Origin", "*"
     });
 
     const stream = new SSEStream();
